@@ -26,7 +26,7 @@ type Client interface {
 	GetOrganization(orgId string) (*amsv1.Organization, error)
 	GetOrgFromClusterID(clusterId string) (string, error)
 
-	// OCM AWS Integration
+	// AWS Account Operations
 	GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error)
 	GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error)
 

@@ -1,4 +1,4 @@
-package ocm
+package aws
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	sdk "github.com/openshift-online/ocm-sdk-go"
 )
 
-// GetSupportRoleArnForCluster retrieves the AWS support role ARN for a cluster
-func GetSupportRoleArnForCluster(ocmClient *sdk.Connection, clusterID string) (string, error) {
+// GetSupportRoleArnFromCluster retrieves the AWS support role ARN from an OCM cluster
+func GetSupportRoleArnFromCluster(ocmClient *sdk.Connection, clusterID string) (string, error) {
 	clusterResponse, err := ocmClient.ClustersMgmt().V1().Clusters().Cluster(clusterID).Get().Send()
 	if err != nil {
 		return "", err
@@ -46,17 +46,22 @@ func GetSupportRoleArnForCluster(ocmClient *sdk.Connection, clusterID string) (s
 	return "", fmt.Errorf("cluster does not have AccountClaim")
 }
 
-// GetAWSAccountIdForCluster extracts the AWS account ID from a cluster's support role ARN
-func GetAWSAccountIdForCluster(ocmClient *sdk.Connection, clusterID string) (string, error) {
-	roleArn, err := GetSupportRoleArnForCluster(ocmClient, clusterID)
-	if err != nil {
-		return "", err
-	}
-
+// GetAccountIdFromArn extracts the AWS account ID from an ARN string
+func GetAccountIdFromArn(roleArn string) (string, error) {
 	awsRoleArn, err := arn.Parse(roleArn)
 	if err != nil {
 		return "", err
 	}
 
 	return awsRoleArn.AccountID, nil
+}
+
+// GetAccountIdFromCluster extracts the AWS account ID from an OCM cluster
+func GetAccountIdFromCluster(ocmClient *sdk.Connection, clusterID string) (string, error) {
+	roleArn, err := GetSupportRoleArnFromCluster(ocmClient, clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	return GetAccountIdFromArn(roleArn)
 }

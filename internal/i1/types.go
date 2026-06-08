@@ -8,6 +8,7 @@ import (
 	amsv1 "github.com/openshift-online/ocm-sdk-go/accountsmgmt/v1"
 	cmv1 "github.com/openshift-online/ocm-sdk-go/clustersmgmt/v1"
 
+	"github.com/petrkotas/srelib/internal/aws"
 	"github.com/petrkotas/srelib/internal/ocm"
 )
 
@@ -126,20 +127,20 @@ func (c *Client) GetOrgFromClusterID(clusterId string) (string, error) {
 	return ocm.GetOrgFromClusterID(c.ocmConn, cluster)
 }
 
-// OCM AWS Integration
+// AWS Account Operations
 
 func (c *Client) GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error) {
 	if c.ocmConn == nil {
 		return "", fmt.Errorf("OCM connection not initialized")
 	}
-	return ocm.GetSupportRoleArnForCluster(c.ocmConn, cluster.ID())
+	return aws.GetSupportRoleArnFromCluster(c.ocmConn, cluster.ID())
 }
 
 func (c *Client) GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error) {
 	if c.ocmConn == nil {
 		return "", fmt.Errorf("OCM connection not initialized")
 	}
-	return ocm.GetAWSAccountIdForCluster(c.ocmConn, cluster.ID())
+	return aws.GetAccountIdFromCluster(c.ocmConn, cluster.ID())
 }
 
 // OCM Configuration
