@@ -6,8 +6,9 @@
 // default log level is info. Supported log levels are: trace, debug, info, warn, error.
 //
 // Usage:
-//   srelib-local --list    List all available methods in the Client interface
-//   srelib-local           Run the local binary (interactive mode)
+//
+//	srelib-local --list    List all available methods in the Client interface
+//	srelib-local           Run the local binary (interactive mode)
 package main
 
 import (
@@ -99,7 +100,16 @@ func main() {
 	})
 
 	// Initialize the SRELib client directly without plugin layer
-	srelib := &i1.Client{Logger: logger}
+	srelib, err := i1.NewClient(logger)
+	if err != nil {
+		logger.Error("Failed to create SRELib client", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := srelib.Close(); err != nil {
+			logger.Error("Failed to close SRELib client", "error", err)
+		}
+	}()
 
 	logger.Info("SRELib local binary initialized", "client", srelib)
 

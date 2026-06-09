@@ -7,11 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/petrkotas/srelib/internal/i1"
 )
 
 // TestGetCluster_RealOCM tests GetCluster against real OCM staging environment
@@ -29,11 +26,9 @@ func TestGetCluster_RealOCM(t *testing.T) {
 	}
 
 	// Create real client
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err, "Failed to create OCM connection")
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	// Test with real OCM API
 	cluster, err := client.GetCluster(testClusterID)
@@ -60,11 +55,9 @@ func TestGetClusterAnyStatus_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	cluster, err := client.GetClusterAnyStatus(testClusterID)
 
@@ -88,11 +81,9 @@ func TestGetClusters_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	// Test with single cluster
 	clusters, err := client.GetClusters([]string{testClusterID})
@@ -119,11 +110,9 @@ func TestIsClusterCCS_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	cluster, err := client.GetCluster(testClusterID)
 	require.NoError(t, err)
@@ -149,11 +138,9 @@ func TestIsHostedCluster_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	cluster, err := client.GetCluster(testClusterID)
 	require.NoError(t, err)
@@ -177,11 +164,9 @@ func TestGetSubscription_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	// Get subscription using cluster ID
 	subscription, err := client.GetSubscription(testClusterID)
@@ -210,11 +195,9 @@ func TestGetOrgFromClusterID_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	orgID, err := client.GetOrgFromClusterID(testClusterID)
 
@@ -239,11 +222,9 @@ func TestGetAWSAccountIdForCluster_RealOCM(t *testing.T) {
 		t.Skip("Skipping: TEST_CLUSTER_ID not set")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err)
-	defer client.CloseOCMConnection()
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
+	defer client.Close()
 
 	cluster, err := client.GetCluster(testClusterID)
 	require.NoError(t, err)
@@ -261,32 +242,32 @@ func TestGetAWSAccountIdForCluster_RealOCM(t *testing.T) {
 	}
 }
 
-// TestConnectionLifecycle_RealOCM tests the full connection lifecycle
+// TestConnectionLifecycle_RealOCM tests the automatic connection lifecycle
 func TestConnectionLifecycle_RealOCM(t *testing.T) {
 	if os.Getenv("OCM_TOKEN") == "" {
 		t.Skip("Skipping E2E test: OCM_TOKEN not set")
 	}
 
 	ocmURL := getEnvOrDefault("OCM_URL", "staging")
+	testClusterID := os.Getenv("TEST_CLUSTER_ID")
+	if testClusterID == "" {
+		t.Skip("Skipping: TEST_CLUSTER_ID not set")
+	}
 
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
+	t.Setenv("OCM_URL", ocmURL)
+	client := setupTestClient(t, ocmURL)
 
-	// Test connection creation
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err, "CreateOCMConnection should succeed")
+	// Test that connection is auto-created on first method call
+	cluster, err := client.GetCluster(testClusterID)
+	require.NoError(t, err, "First method call should auto-create connection")
+	assert.NotNil(t, cluster, "Cluster should not be nil")
 
-	// Test getting connection
-	conn, err := client.GetOCMConnection()
-	require.NoError(t, err, "GetOCMConnection should succeed")
-	assert.NotNil(t, conn, "Connection should not be nil")
+	// Test that subsequent calls reuse the same connection
+	cluster2, err := client.GetCluster(testClusterID)
+	require.NoError(t, err, "Subsequent calls should reuse connection")
+	assert.NotNil(t, cluster2, "Cluster should not be nil")
 
 	// Test closing connection
-	err = client.CloseOCMConnection()
-	assert.NoError(t, err, "CloseOCMConnection should succeed")
-
-	// Test that connection is closed
-	_, err = client.GetOCMConnection()
-	assert.Error(t, err, "GetOCMConnection should fail after close")
-	assert.Contains(t, err.Error(), "not initialized")
+	err = client.Close()
+	assert.NoError(t, err, "Close should succeed")
 }

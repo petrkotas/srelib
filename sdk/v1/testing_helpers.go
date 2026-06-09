@@ -23,11 +23,8 @@ func setupTestClient(t *testing.T, ocmURL string) *i1.Client {
 		Level: hclog.Error, // Quiet logging during tests
 	})
 
-	client := &i1.Client{Logger: logger}
-
-	err := client.CreateOCMConnection(ocmURL)
-	require.NoError(t, err, "Failed to create OCM connection")
-
+	client, err := i1.NewClient(logger)
+	require.NoError(t, err, "Failed to create test client")
 	return client
 }
 

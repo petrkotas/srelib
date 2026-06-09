@@ -1,17 +1,12 @@
 package v1
 
 import (
-	sdk "github.com/openshift-online/ocm-sdk-go"
 	amsv1 "github.com/openshift-online/ocm-sdk-go/accountsmgmt/v1"
 	cmv1 "github.com/openshift-online/ocm-sdk-go/clustersmgmt/v1"
 )
 
 // Client is the interface with actions the plugin provides.
 type Client interface {
-	// OCM Connection Management
-	CreateOCMConnection(url string) error
-	GetOCMConnection() (*sdk.Connection, error)
-	CloseOCMConnection() error
 
 	// OCM Cluster Operations
 	GetCluster(key string) (*cmv1.Cluster, error)
@@ -29,8 +24,4 @@ type Client interface {
 	// AWS Account Operations
 	GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error)
 	GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error)
-
-	// OCM Configuration
-	LoadOCMConfig(filePath string) error
-	GetOCMConfigLocation() (string, error)
 }

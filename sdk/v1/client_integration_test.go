@@ -3,119 +3,90 @@ package v1
 import (
 	"testing"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/petrkotas/srelib/internal/i1"
 )
 
-// TestClient_ConnectionLifecycle tests the OCM connection lifecycle
+// TestClient_ConnectionLifecycle tests the automatic OCM connection lifecycle
 func TestClient_ConnectionLifecycle(t *testing.T) {
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
+	client := setupTestClient(t, "")
 
-	// Test GetOCMConnection before initialization
-	_, err := client.GetOCMConnection()
-	assert.Error(t, err, "GetOCMConnection should error when connection not initialized")
-	assert.Contains(t, err.Error(), "not initialized")
+	// Test that Close works even without any operations
+	err := client.Close()
+	assert.NoError(t, err, "Close should not error even if connection was never initialized")
 
-	// Note: Cannot test CreateOCMConnection without valid OCM credentials
-	// This would require mocking the OCM SDK's connection builder
-	// See E2E tests for actual connection testing
-
-	// Test CloseOCMConnection when connection is nil (should not error)
-	err = client.CloseOCMConnection()
-	assert.NoError(t, err, "CloseOCMConnection should not error when connection is nil")
+	// Test Close can be called multiple times
+	err = client.Close()
+	assert.NoError(t, err, "Close should be safe to call multiple times")
 }
 
-// TestClient_ClusterOperations_UninitializedConnection tests that cluster operations
-// fail gracefully when connection is not initialized
-func TestClient_ClusterOperations_UninitializedConnection(t *testing.T) {
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
+// TestClient_ClusterOperations_MissingCredentials tests that cluster operations
+// fail gracefully when OCM credentials are not available
+func TestClient_ClusterOperations_MissingCredentials(t *testing.T) {
+	// Clear OCM-related env vars to simulate missing credentials
+	t.Setenv("OCM_TOKEN", "")
+	t.Setenv("OCM_CONFIG", "/nonexistent/path/ocm.json")
 
-	t.Run("GetCluster", func(t *testing.T) {
+	client := setupTestClient(t, "")
+
+	t.Run("GetCluster fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetCluster("test-id")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		require.Error(t, err, "Should fail when credentials are missing")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 
-	t.Run("GetClusterAnyStatus", func(t *testing.T) {
+	t.Run("GetClusterAnyStatus fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetClusterAnyStatus("test-id")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		require.Error(t, err, "Should fail when credentials are missing")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 
-	t.Run("GetClusters", func(t *testing.T) {
+	t.Run("GetClusters fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetClusters([]string{"test-id-1", "test-id-2"})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		require.Error(t, err, "Should fail when credentials are missing")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 }
 
-// TestClient_SubscriptionOperations_UninitializedConnection tests that subscription operations
-// fail gracefully when connection is not initialized
-func TestClient_SubscriptionOperations_UninitializedConnection(t *testing.T) {
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
+// TestClient_SubscriptionOperations_MissingCredentials tests that subscription operations
+// fail gracefully when OCM credentials are not available
+func TestClient_SubscriptionOperations_MissingCredentials(t *testing.T) {
+	// Clear OCM-related env vars to simulate missing credentials
+	t.Setenv("OCM_TOKEN", "")
+	t.Setenv("OCM_CONFIG", "/nonexistent/path/ocm.json")
 
-	t.Run("GetSubscription", func(t *testing.T) {
+	client := setupTestClient(t, "")
+
+	t.Run("GetSubscription fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetSubscription("test-sub-id")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 
-	t.Run("GetOrganization", func(t *testing.T) {
+	t.Run("GetOrganization fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetOrganization("test-org-id")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 
-	t.Run("GetOrgFromClusterID", func(t *testing.T) {
+	t.Run("GetOrgFromClusterID fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetOrgFromClusterID("test-cluster-id")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not initialized")
+		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 }
 
-// TestClient_AWSOperations_UninitializedConnection tests that AWS operations
-// fail gracefully when connection is not initialized
-func TestClient_AWSOperations_UninitializedConnection(t *testing.T) {
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-
+// TestClient_AWSOperations_MissingCredentials tests that AWS operations
+// fail gracefully when OCM credentials are not available
+func TestClient_AWSOperations_MissingCredentials(t *testing.T) {
 	// Note: These tests can't call the methods without a valid cluster object
 	// which requires an OCM connection to create. See E2E tests for actual testing.
 
-	t.Run("GetSupportRoleArnForCluster requires initialized connection", func(t *testing.T) {
-		// This test documents that the method requires an initialized connection
+	t.Run("AWS operations require valid OCM connection", func(t *testing.T) {
+		// This test documents that AWS methods require an initialized connection
 		// Actual testing requires E2E tests with real OCM data
-		assert.NotNil(t, client.Logger, "Client should have logger initialized")
-	})
-}
-
-// TestClient_ConfigOperations tests OCM configuration operations
-func TestClient_ConfigOperations(t *testing.T) {
-	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.Error})
-	client := &i1.Client{Logger: logger}
-
-	t.Run("GetOCMConfigLocation", func(t *testing.T) {
-		// This should work without an OCM connection
-		location, err := client.GetOCMConfigLocation()
-		// May error if no config exists, but should not panic
-		if err == nil {
-			assert.NotEmpty(t, location, "Config location should not be empty when no error")
-		}
-	})
-
-	t.Run("LoadOCMConfig with empty path", func(t *testing.T) {
-		// Loading config should not require an active connection
-		// May error if config doesn't exist, but should not panic
-		err := client.LoadOCMConfig("")
-		// We don't assert on error since config may or may not exist
-		// The important thing is it doesn't panic
-		_ = err
+		client := setupTestClient(t, "")
+		assert.NotNil(t, client, "Client should be created")
 	})
 }
 
