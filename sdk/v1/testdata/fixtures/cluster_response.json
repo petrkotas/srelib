@@ -1,0 +1,41 @@
+{
+  "kind": "Cluster",
+  "id": "test-cluster-123",
+  "href": "/api/clusters_mgmt/v1/clusters/test-cluster-123",
+  "name": "test-cluster",
+  "display_name": "test-cluster",
+  "external_id": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "ready",
+  "creation_timestamp": "2024-01-15T10:30:00Z",
+  "region": {
+    "id": "us-east-1",
+    "kind": "CloudRegion"
+  },
+  "version": {
+    "id": "4.14.0",
+    "kind": "Version",
+    "raw_id": "openshift-v4.14.0"
+  },
+  "cloud_provider": {
+    "id": "aws",
+    "kind": "CloudProvider"
+  },
+  "subscription": {
+    "id": "test-subscription-456",
+    "href": "/api/accounts_mgmt/v1/subscriptions/test-subscription-456"
+  },
+  "properties": {
+    "provisioned": "true"
+  },
+  "nodes": {
+    "compute": 2,
+    "infra": 0,
+    "master": 3
+  },
+  "api": {
+    "url": "https://api.test-cluster.example.com:6443"
+  },
+  "console": {
+    "url": "https://console-openshift-console.apps.test-cluster.example.com"
+  }
+}

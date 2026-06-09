@@ -1,0 +1,165 @@
+{
+  "_metadata": {
+    "source": "OCM Production API",
+    "captured_date": "2026-06-09",
+    "sanitized": true
+  },
+  "billing_expiration_date": "0001-01-01T00:00:00Z",
+  "cloud_account_id": "1234567890",
+  "cloud_provider_id": "aws",
+  "cluster_billing_model": "standard",
+  "cluster_id": "test-cluster-456",
+  "console_url": "https://console-openshift-console.apps.test-cluster-456.test.t1.openshiftapps.com",
+  "created_at": "2021-02-18T13:53:15.094625Z",
+  "creator": {
+    "href": "/api/accounts_mgmt/v1/accounts/test-account-456",
+    "id": "test-account-456",
+    "kind": "Account"
+  },
+  "display_name": "test-cluster-456",
+  "eval_expiration_date": "0001-01-01T00:00:00Z",
+  "external_cluster_id": "external-test-cluster-456",
+  "href": "/api/accounts_mgmt/v1/subscriptions/test-subscription-456",
+  "id": "test-subscription-456",
+  "kind": "Subscription",
+  "last_reconcile_date": "0001-01-01T00:00:00Z",
+  "last_released_at": "0001-01-01T00:00:00Z",
+  "last_telemetry_date": "2026-06-09T09:08:48.784475Z",
+  "managed": true,
+  "metrics": [
+    {
+      "arch": "amd64",
+      "channel_info": "stable-4.18",
+      "cloud_provider": "aws",
+      "cluster_type": "",
+      "compute_nodes_cpu": {
+        "total": {
+          "unit": "",
+          "value": 368
+        },
+        "updated_timestamp": "0001-01-01T00:00:00Z",
+        "used": {
+          "unit": "",
+          "value": 0
+        }
+      },
+      "compute_nodes_memory": {
+        "total": {
+          "unit": "B",
+          "value": 1352579559424
+        },
+        "updated_timestamp": "0001-01-01T00:00:00Z",
+        "used": {
+          "unit": "B",
+          "value": 0
+        }
+      },
+      "compute_nodes_sockets": {
+        "total": {
+          "unit": "",
+          "value": 0
+        },
+        "updated_timestamp": "0001-01-01T00:00:00Z",
+        "used": {
+          "unit": "",
+          "value": 0
+        }
+      },
+      "console_url": "https://console-openshift-console.apps.test-cluster-456.test.t1.openshiftapps.com",
+      "cpu": {
+        "total": {
+          "unit": "",
+          "value": 488
+        },
+        "updated_timestamp": "2026-06-09T12:00:06.921Z",
+        "used": {
+          "unit": "",
+          "value": 49.390936013514974
+        }
+      },
+      "critical_alerts_firing": 0,
+      "health_state": "healthy",
+      "memory": {
+        "total": {
+          "unit": "B",
+          "value": 1952916897792
+        },
+        "updated_timestamp": "2026-06-09T12:00:04.067Z",
+        "used": {
+          "unit": "B",
+          "value": 862379532288
+        }
+      },
+      "nodes": {
+        "compute": 34,
+        "infra": 3,
+        "master": 3,
+        "total": 40
+      },
+      "nodes_arch": [
+        {
+          "arch": "amd64",
+          "compute": 34,
+          "infra": 3,
+          "master": 3,
+          "total": 40
+        }
+      ],
+      "non_virt_nodes": 0,
+      "openshift_version": "4.18.42",
+      "operating_system": "",
+      "operators_condition_failing": 0,
+      "query_timestamp": "2026-06-09T12:00:01Z",
+      "region": "eu-central-1",
+      "sockets": {
+        "total": {
+          "unit": "",
+          "value": 0
+        },
+        "updated_timestamp": "0001-01-01T00:00:00Z",
+        "used": {
+          "unit": "",
+          "value": 0
+        }
+      },
+      "state": "ready",
+      "state_description": "",
+      "storage": {
+        "total": {
+          "unit": "B",
+          "value": 0
+        },
+        "updated_timestamp": "0001-01-01T00:00:00Z",
+        "used": {
+          "unit": "B",
+          "value": 0
+        }
+      },
+      "subscription_cpu_total": 184,
+      "subscription_obligation_exists": 3,
+      "subscription_socket_total": 34,
+      "upgrade": {
+        "available": false,
+        "state": "completed",
+        "updated_timestamp": "2026-06-09T12:00:09.469Z",
+        "version": "4.18.42"
+      }
+    }
+  ],
+  "organization": {
+    "id": "test-cluster-123"
+  },
+  "organization_id": "test-cluster-123",
+  "plan": {
+    "href": "/api/accounts_mgmt/v1/plans/TEST",
+    "id": "TEST",
+    "kind": "Plan",
+    "type": "TEST"
+  },
+  "provenance": "Provisioning",
+  "region_id": "eu-central-1",
+  "status": "Active",
+  "support_level": "Premium",
+  "trial_end_date": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-06-09T09:08:48.784913Z"
+}

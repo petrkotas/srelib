@@ -3,6 +3,9 @@ package ocm
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetOCMConfigLocation(t *testing.T) {
@@ -12,13 +15,8 @@ func TestGetOCMConfigLocation(t *testing.T) {
 	defer os.Unsetenv("OCM_CONFIG")
 
 	location, err := GetOCMConfigLocation()
-	if err != nil {
-		t.Fatalf("GetOCMConfigLocation() failed: %v", err)
-	}
-
-	if location != testPath {
-		t.Errorf("Expected location %s, got %s", testPath, location)
-	}
+	require.NoError(t, err, "GetOCMConfigLocation should not return an error")
+	assert.Equal(t, testPath, location, "OCM config location should match OCM_CONFIG environment variable")
 }
 
 func TestValidateAndResolveOcmUrl(t *testing.T) {
@@ -42,16 +40,10 @@ func TestValidateAndResolveOcmUrl(t *testing.T) {
 			result, err := ValidateAndResolveOcmUrl(tt.input)
 
 			if tt.shouldError {
-				if err == nil {
-					t.Errorf("Expected error for input %s, got none", tt.input)
-				}
+				assert.Error(t, err, "Expected error for input %s", tt.input)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for input %s: %v", tt.input, err)
-				}
-				if result != tt.expected {
-					t.Errorf("Expected %s, got %s", tt.expected, result)
-				}
+				require.NoError(t, err, "Unexpected error for input %s", tt.input)
+				assert.Equal(t, tt.expected, result, "Expected %s, got %s", tt.expected, result)
 			}
 		})
 	}
@@ -73,10 +65,8 @@ func TestURLAliases(t *testing.T) {
 	}
 
 	for alias, expectedURL := range expectedMappings {
-		if resolved, ok := urlAliases[alias]; !ok {
-			t.Errorf("Alias %s not found in urlAliases map", alias)
-		} else if resolved != expectedURL {
-			t.Errorf("Alias %s maps to %s, expected %s", alias, resolved, expectedURL)
-		}
+		resolved, ok := urlAliases[alias]
+		assert.True(t, ok, "Alias %s should be found in urlAliases map", alias)
+		assert.Equal(t, expectedURL, resolved, "Alias %s should map to %s", alias, expectedURL)
 	}
 }

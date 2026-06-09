@@ -2,6 +2,8 @@ package ocm
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateQuery(t *testing.T) {
@@ -35,9 +37,7 @@ func TestGenerateQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GenerateQuery(tt.identifier)
-			if result != tt.expected {
-				t.Errorf("GenerateQuery(%s) = %s, want %s", tt.identifier, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "GenerateQuery should return correct query for %s", tt.name)
 		})
 	}
 }
