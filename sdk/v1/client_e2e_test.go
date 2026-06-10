@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/petrkotas/srelib/internal/i1"
+	sdktesting "github.com/petrkotas/srelib/sdk/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ import (
 // e2eTestContext holds the test setup (either mock or real)
 type e2eTestContext struct {
 	client        *i1.Client
-	mockServer    *MockOCMServer
+	mockServer    *sdktesting.MockOCMServer
 	testClusterID string
 	mode          string // "mock" or "real" - only for logging
 }
@@ -46,7 +47,7 @@ func setupE2ETest(t *testing.T) *e2eTestContext {
 		ctx.mode = "real"
 		t.Logf("Running E2E test in REAL OCM mode")
 
-		ocmURL := getEnvOrDefault("OCM_URL", "staging")
+		ocmURL := sdktesting.GetEnvOrDefault("OCM_URL", "staging")
 		ctx.testClusterID = os.Getenv("TEST_CLUSTER_ID")
 
 		if ctx.testClusterID == "" {
@@ -60,7 +61,7 @@ func setupE2ETest(t *testing.T) *e2eTestContext {
 		ctx.mode = "mock"
 		t.Logf("Running E2E test in MOCK mode (no OCM_TOKEN found)")
 
-		ctx.mockServer = NewMockOCMServer(t)
+		ctx.mockServer = sdktesting.NewMockOCMServer(t)
 
 		// Load test cluster fixture
 		clusterID, err := ctx.mockServer.LoadClusterFromFixture("cluster_osd.json")
@@ -98,7 +99,7 @@ func setupE2ETestWithFixture(t *testing.T, fixtureName string) *e2eTestContext {
 	}
 
 	ctx := &e2eTestContext{mode: "mock"}
-	ctx.mockServer = NewMockOCMServer(t)
+	ctx.mockServer = sdktesting.NewMockOCMServer(t)
 
 	clusterID, err := ctx.mockServer.LoadClusterFromFixture(fixtureName)
 	require.NoError(t, err, "Failed to load fixture %s", fixtureName)
@@ -122,7 +123,7 @@ func TestGetCluster_E2E(t *testing.T) {
 	require.NotNil(t, cluster)
 	assert.Equal(t, ctx.testClusterID, cluster.ID())
 	assert.NotEmpty(t, cluster.Name())
-	assertClusterValid(t, cluster)
+	sdktesting.AssertClusterValid(t, cluster)
 
 	t.Logf("[%s] Cluster: %s (%s)", ctx.mode, cluster.Name(), cluster.ID())
 }
@@ -137,7 +138,7 @@ func TestGetClusterAnyStatus_E2E(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cluster)
 	assert.Equal(t, ctx.testClusterID, cluster.ID())
-	assertClusterValid(t, cluster)
+	sdktesting.AssertClusterValid(t, cluster)
 
 	t.Logf("[%s] Cluster status: %s", ctx.mode, cluster.State())
 }
@@ -152,7 +153,7 @@ func TestGetClusters_E2E(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, clusters)
 	require.NotNil(t, clusters[0])
-	assertClusterValid(t, clusters[0])
+	sdktesting.AssertClusterValid(t, clusters[0])
 
 	t.Logf("[%s] Retrieved %d cluster(s) in batch", ctx.mode, len(clusters))
 }
@@ -171,7 +172,7 @@ func TestGetSubscription_E2E(t *testing.T) {
 	}
 
 	require.NotNil(t, subscription)
-	assertSubscriptionValid(t, subscription)
+	sdktesting.AssertSubscriptionValid(t, subscription)
 	t.Logf("[%s] Subscription ID: %s", ctx.mode, subscription.ID())
 }
 

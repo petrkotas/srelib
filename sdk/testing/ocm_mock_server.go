@@ -1,7 +1,7 @@
 //go:build integration || e2e
 // +build integration e2e
 
-package v1
+package testing
 
 import (
 	"encoding/json"
@@ -28,8 +28,8 @@ type MockOCMServer struct {
 
 // NewMockOCMServer creates a new mock OCM API server
 func NewMockOCMServer(t *testing.T) *MockOCMServer {
-	// Find fixtures directory relative to test file
-	fixturesPath := filepath.Join("testdata", "fixtures")
+	// Find fixtures directory - go up to sdk level
+	fixturesPath := filepath.Join("..", "testdata", "fixtures")
 
 	mock := &MockOCMServer{
 		Clusters:      make(map[string]json.RawMessage),

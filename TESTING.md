@@ -65,7 +65,7 @@ go test ./internal/... -v
 
 ### 2. Integration Tests (Mock Server, No Credentials)
 
-**Location**: `sdk/v1/*_test.go` (without build tags)
+**Location**: `sdk/*_test.go` (without build tags)
 **Build tag**: `integration` (optional, implied by default)
 **Run with**: `make test-integration`
 
@@ -82,10 +82,6 @@ Tests the SDK using a **mock HTTP server** that simulates OCM API responses with
 ```
 Test Code
    ↓
-RPCClient (sdk/v1/client.go)
-   ↓
-RPC Server (sdk/v1/server.go)
-   ↓
 i1.Client (internal/i1/types.go)
    ↓
 OCM functions (internal/ocm/*.go)
@@ -99,7 +95,7 @@ HTTP Request → Mock Server (returns real fixture data)
 ```bash
 make test-integration
 # or
-go test ./sdk/v1 -v
+go test ./sdk -v
 ```
 
 **Example:**
@@ -124,9 +120,9 @@ func TestGetCluster_MockOCM(t *testing.T) {
 
 ### 3. E2E Tests (Dual Mode: Mock or Real OCM)
 
-**Location**: `sdk/v1/client_e2e_test.go`
+**Location**: `sdk/client_e2e_test.go`
 **Build tag**: `e2e` (required)
-**Run with**: `make test-e2e` or `go test -tags=e2e ./sdk/v1`
+**Run with**: `make test-e2e` or `go test -tags=e2e ./sdk`
 
 **Unique feature**: These tests automatically adapt based on whether credentials are available:
 - **Mock mode** (no `OCM_TOKEN`): Uses mock server with fixtures for local development
@@ -138,7 +134,7 @@ This allows developers to run E2E tests locally without credentials, while CI ru
 ```bash
 # No credentials needed - uses mock server
 unset OCM_TOKEN
-go test -tags=e2e ./sdk/v1 -v
+go test -tags=e2e ./sdk -v
 
 # Test output will show:
 # Running E2E test in MOCK mode (no OCM_TOKEN found)
@@ -161,7 +157,7 @@ export OCM_URL=staging  # optional, defaults to staging
 # Run E2E tests against real OCM
 make test-e2e
 # or
-go test -tags=e2e ./sdk/v1 -v
+go test -tags=e2e ./sdk -v
 
 # Test output will show:
 # Running E2E test in REAL OCM mode
@@ -230,7 +226,7 @@ The E2E test suite covers:
 All tests use `setupTestClient(t)` which creates a client via `NewTestClient()`:
 
 ```go
-// sdk/v1/testing_helpers.go
+// sdk/testing_helpers.go
 func setupTestClient(t *testing.T) *i1.Client {
     logger := hclog.New(&hclog.LoggerOptions{
         Level: hclog.Error,
@@ -310,26 +306,68 @@ t.Setenv("OCM_URL", "staging")  // Resolves to https://api.stage.openshift.com
 
 ## Test Fixtures
 
-**Location**: `sdk/v1/testdata/fixtures/`
+**Location**: `sdk/testdata/fixtures/`
 
-Test fixtures provide real OCM API response formats captured from actual API calls and sanitized for testing.
+These fixtures enable true end-to-end testing by:
+1. Providing real OCM API response formats
+2. Allowing tests to run without OCM credentials  
+3. Testing all OCM SDK code paths (`internal/ocm/`) against realistic data
+4. Ensuring compatibility with actual OCM API responses
 
 ### Available Fixtures
 
-- `cluster_osd.json` - OpenShift Dedicated cluster
-- `cluster_ccs.json` - CCS (Customer Cloud Subscription) cluster
-- `cluster_hypershift.json` - Hypershift/HCP cluster
-- `cluster_rosa.json` - ROSA cluster
-- `subscription_response.json` - Subscription data
-- `organization_response.json` - Organization data
+#### Cluster Fixtures
 
-### Loading Fixtures
+- `cluster_response.json` - Basic cluster response (minimal fields)
+- `cluster_osd.json` - Full OpenShift Dedicated cluster
+- `cluster_ccs.json` - Customer Cloud Subscription (CCS) cluster
+- `cluster_hypershift.json` - Hypershift/HCP (Hosted Control Plane) cluster  
+- `cluster_rosa.json` - Red Hat OpenShift Service on AWS cluster
+
+#### Subscription Fixtures
+
+- `subscription_response.json` - Full subscription response with metrics
+
+#### Organization Fixtures
+
+- `organization_response.json` - Organization details
+
+### Fixture Metadata
+
+Each fixture includes a `_metadata` section (when captured from real API):
+
+```json
+{
+  "_metadata": {
+    "source": "OCM Production API",
+    "captured_date": "2026-06-09",
+    "cluster_type": "ccs",
+    "sanitized": true
+  },
+  ...
+}
+```
+
+This metadata is for documentation only and is ignored by the OCM SDK.
+
+### Using Fixtures in Tests
 
 ```go
 // In integration tests
 mockServer := setupMockServer(t)
+defer mockServer.Close()
+
+// Load a cluster fixture
 clusterID, err := mockServer.LoadClusterFromFixture("cluster_osd.json")
 require.NoError(t, err)
+
+// Point OCM SDK to mock server
+t.Setenv("OCM_URL", mockServer.URL)
+t.Setenv("OCM_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjo5OTk5OTk5OTk5fQ.signature")
+
+// Now all OCM calls use fixtures
+client := setupTestClient(t)
+cluster, err := client.GetCluster(clusterID)
 
 // Or add raw JSON for custom scenarios
 customJSON := json.RawMessage(`{"id": "custom-123", "name": "custom", ...}`)
@@ -338,34 +376,112 @@ mockServer.AddClusterRaw("custom-123", customJSON)
 
 ### Capturing New Fixtures
 
+To capture new fixtures from a real OCM environment:
+
 ```bash
-# Set credentials
-export OCM_URL=staging
-export OCM_TOKEN=$(ocm token)
+# Set OCM credentials
+export OCM_URL=staging  # or production, integration
+export OCM_TOKEN=your-token-here
 
-# Capture cluster
-ocm get /api/clusters_mgmt/v1/clusters/CLUSTER_ID > temp.json
+# Use curl or ocm CLI to fetch responses
+ocm get /api/clusters_mgmt/v1/clusters/CLUSTER_ID | jq '.' > cluster_new.json
 
-# ⚠️ MANDATORY: Sanitize before committing (see below)
-
-# Save to fixtures
-mv sanitized.json sdk/v1/testdata/fixtures/cluster_new.json
+# Or via API
+curl -H "Authorization: Bearer $OCM_TOKEN" \
+  https://api.stage.openshift.com/api/clusters_mgmt/v1/clusters/CLUSTER_ID \
+  | jq '.' > cluster_new.json
 ```
 
-### ⚠️ MANDATORY: Sanitize Fixtures
+### ⚠️ MANDATORY: Sanitize Before Committing
 
-**NEVER commit fixtures with real customer data!**
+**⚠️ CRITICAL**: All fixtures MUST be sanitized to remove real customer data, credentials, and identifying information before being committed to the repository.
 
-Before adding any fixture:
+**NEVER commit fixtures with real data!** Before adding any fixture to this directory, you MUST sanitize:
 
-1. Replace all real cluster IDs → `test-cluster-123`
-2. Replace all AWS account IDs → `123456789012`
-3. Replace all customer names → generic test names
-4. Replace all real domains → `.test.t1.openshiftapps.com`
-5. Remove any tokens, credentials, ARNs with real account IDs
-6. Add `_metadata.sanitized: true`
+#### Data to Replace/Remove
 
-See [sdk/v1/testdata/fixtures/README.md](sdk/v1/testdata/fixtures/README.md) for complete sanitization guide.
+1. **Customer Identifiers**
+   - Real cluster IDs → Use test IDs like `test-cluster-123`
+   - Real cluster names → Use generic names like `test-cluster-name`
+   - External IDs → Generate random UUIDs or use test values
+   - Organization IDs → Use `test-org-123`
+   - Account IDs → Use `test-account-123`
+
+2. **AWS/Cloud Credentials**
+   - AWS Account IDs → Use `123456789012` (or other fake 12-digit numbers)
+   - IAM Role ARNs → Replace account ID portions with fake IDs
+   - Subnet IDs, VPC IDs → Use `subnet-12345678901234567` format
+   - Any AWS resource identifiers
+
+3. **Sensitive URLs and Endpoints**
+   - Console URLs → Use `.test.t1.openshiftapps.com` domains
+   - API URLs → Use test domains
+   - OIDC endpoint URLs → Use test endpoints
+   - Any customer-specific domains
+
+4. **Authentication Tokens**
+   - Any tokens, secrets, or credentials in responses
+   - OAuth client IDs/secrets
+
+5. **Personal/Customer Information**
+   - Creator usernames/emails
+   - Customer organization names → Use generic names
+   - Any PII (personally identifiable information)
+
+#### Sanitization Process
+
+```bash
+# 1. Capture the fixture
+ocm get /api/clusters_mgmt/v1/clusters/REAL_ID > temp.json
+
+# 2. Use jq or sed to replace sensitive data
+jq '
+  .id = "test-cluster-123" |
+  .name = "test-cluster-123" |
+  .external_id = "test-external-123" |
+  .aws.billing_account_id = "123456789012" |
+  # ... add more replacements as needed
+' temp.json > cluster_sanitized.json
+
+# 3. Add metadata marking it as sanitized
+jq '. + {"_metadata": {"source": "OCM Production API", "captured_date": "2026-06-09", "sanitized": true}}' \
+  cluster_sanitized.json > cluster_new.json
+
+# 4. Manually review the file to ensure no real data remains
+cat cluster_new.json | less
+
+# 5. Delete temp files
+rm temp.json cluster_sanitized.json
+
+# 6. Move to fixtures directory
+mv cluster_new.json sdk/testdata/fixtures/
+```
+
+#### Verification Checklist
+
+Before committing a new fixture, verify:
+
+- [ ] No real cluster IDs or names
+- [ ] No real AWS account IDs (all 12-digit numbers are fake)
+- [ ] No real IAM role ARNs with customer account IDs  
+- [ ] No real domain names (use `.test.t1.openshiftapps.com`)
+- [ ] No real organization or customer names
+- [ ] No tokens, credentials, or secrets
+- [ ] `_metadata.sanitized: true` is present
+- [ ] File has been manually reviewed line-by-line
+
+**When in doubt, redact or use generic test values.**
+
+### Fixture Format Requirements
+
+All fixtures must:
+
+1. Be valid JSON
+2. Match the OCM API response schema exactly
+3. Include required fields: `id`, `kind`, `href`
+4. Have unique IDs to avoid conflicts in tests
+5. **Be fully sanitized with no real customer data** (see sanitization section above)
+6. Include `_metadata.sanitized: true` to indicate sanitization was performed
 
 ## Mock Server Features
 
@@ -444,14 +560,14 @@ Check test coverage:
 
 ```bash
 # Generate coverage report
-go test ./sdk/v1 -cover -v
+go test ./sdk -cover -v
 
 # Generate HTML coverage report
-go test ./sdk/v1 -coverprofile=coverage.out
+go test ./sdk -coverprofile=coverage.out
 go tool cover -html=coverage.out
 
 # Coverage with E2E tests
-go test -tags=e2e ./sdk/v1 -coverprofile=coverage.out
+go test -tags=e2e ./sdk -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
 
@@ -505,7 +621,7 @@ func TestMyFeature_E2E(t *testing.T) {
 
 ## Test Helpers
 
-**Location**: `sdk/v1/testing_helpers.go`
+**Location**: `sdk/testing_helpers.go`
 
 Shared test utilities available to all test files:
 
@@ -562,8 +678,10 @@ t.Setenv("OCM_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Iiwi
 ```
 
 ### Fixture not found
+
 Check the fixture path:
-- Fixtures must be in `sdk/v1/testdata/fixtures/`
+
+- Fixtures must be in `sdk/testdata/fixtures/`
 - Use the filename only, not the full path
 - File must be valid JSON
 
@@ -628,10 +746,11 @@ Check the fixture path:
 
 ## Resources
 
-- [Mock Server Implementation](sdk/v1/ocm_mock_server_test.go)
-- [E2E Tests Implementation](sdk/v1/client_e2e_test.go)
-- [Integration Tests](sdk/v1/client_integration_test.go)
-- [Fixture Documentation](sdk/v1/testdata/fixtures/README.md)
+- [Mock Server Implementation](sdk/ocm_mock_server_test.go)
+- [E2E Tests Implementation](sdk/client_e2e_test.go)
+- [Integration Tests](sdk/client_integration_test.go)
+- [Fixture Documentation](sdk/testdata/fixtures/README.md)
+- [Test Helpers](sdk/testing_helpers.go)
 - [Connection Code](internal/ocm/connection_testing.go)
 - [GitHub Actions Setup](.github/E2E_SETUP.md)
 - [testify documentation](https://github.com/stretchr/testify)
