@@ -1,31 +1,34 @@
-# Testing Guide for srelib
+# Testing Guide for SRELib
 
-This document describes the testing strategy and how to run tests for the srelib project.
+This guide explains the comprehensive testing strategy for the SRELib SDK, with a focus on testing OCM (OpenShift Cluster Manager) API integrations.
 
 ## Overview
 
-The srelib project uses a **three-tier testing strategy**:
+SRELib uses a **three-tier testing strategy** with a unique dual-mode E2E testing approach:
 
-1. **Unit Tests** - Test individual functions with no external dependencies
-2. **Integration Tests** - Test Client interface with mocked/stubbed dependencies, fast and deterministic
-3. **E2E Tests** - Validate against real OCM staging environment, require credentials
+1. **Unit Tests** - Fast, isolated tests with no external dependencies
+2. **Integration Tests** - Mock server tests with real OCM API fixtures
+3. **E2E Tests** - Dual-mode tests that work both locally (mock) and in CI (real OCM)
 
 ## Quick Start
 
 ```bash
-# Run all unit and integration tests (no credentials needed)
+# Run all fast tests (unit + integration, no credentials needed)
 make test
 
 # Run only unit tests
 make test-unit
 
-# Run only integration tests
+# Run only integration tests with mock server
 make test-integration
 
-# Run E2E tests (requires OCM credentials)
-export OCM_TOKEN="your-staging-token"
-export OCM_URL="staging"
+# Run E2E tests in mock mode (no credentials needed)
+make test-e2e
+
+# Run E2E tests against real OCM (requires credentials)
+export OCM_TOKEN=$(ocm token)
 export TEST_CLUSTER_ID="your-test-cluster-id"
+export OCM_URL=staging  # optional, defaults to staging
 make test-e2e
 
 # Run everything
@@ -34,11 +37,13 @@ make test-all
 
 ## Test Tier Details
 
-### 1. Unit Tests
+### 1. Unit Tests (Fast, No Dependencies)
 
-**Location:** `internal/ocm/*_test.go`
+**Location**: `internal/*/` packages
+**Build tag**: None
+**Run with**: `make test-unit`
 
-**Purpose:** Test individual utility functions in isolation with no external dependencies.
+Tests internal implementation details with no external dependencies.
 
 **Examples:**
 - `TestGetOCMConfigLocation` - Tests OCM config file location resolution
@@ -58,16 +63,37 @@ go test ./internal/... -v
 - Always deterministic
 - Run on every commit
 
-### 2. Integration Tests
+### 2. Integration Tests (Mock Server, No Credentials)
 
-**Location:** `sdk/v1/client_integration_test.go`
+**Location**: `sdk/v1/*_test.go` (without build tags)
+**Build tag**: `integration` (optional, implied by default)
+**Run with**: `make test-integration`
 
-**Purpose:** Test the Client interface behavior with error handling and connection lifecycle.
+Tests the SDK using a **mock HTTP server** that simulates OCM API responses with real fixtures.
 
-**Coverage:**
-- Connection lifecycle (create, get, close)
-- Error handling when connection not initialized
-- Client method signatures and return types
+**Key characteristics:**
+- No real OCM credentials required
+- Uses `setupMockServer()` to create local HTTP server
+- Fast and deterministic
+- Safe to run in any environment
+- Tests the **entire stack** except the final HTTP call
+
+**Architecture Flow:**
+```
+Test Code
+   ↓
+RPCClient (sdk/v1/client.go)
+   ↓
+RPC Server (sdk/v1/server.go)
+   ↓
+i1.Client (internal/i1/types.go)
+   ↓
+OCM functions (internal/ocm/*.go)
+   ↓
+OCM SDK (github.com/openshift-online/ocm-sdk-go)
+   ↓
+HTTP Request → Mock Server (returns real fixture data)
+```
 
 **Running:**
 ```bash
@@ -76,71 +102,308 @@ make test-integration
 go test ./sdk/v1 -v
 ```
 
-**Characteristics:**
-- No credentials required
-- Tests error paths and edge cases
-- Fast execution
-- Run on every commit
+**Example:**
+```go
+// Integration test example
+func TestGetCluster_MockOCM(t *testing.T) {
+    // Creates a local HTTP server with fixtures
+    mockServer := setupMockServer(t)
+    defer mockServer.Close()
 
-**Note:** Full mock-based integration testing (with httptest) is not feasible because the OCM SDK (`ocm-sdk-go`) manages its own HTTP client internally and doesn't expose injection points. For comprehensive API-level testing, see E2E tests.
+    // Points client at mock server
+    t.Setenv("OCM_URL", mockServer.URL)
+    client := setupTestClient(t)
 
-### 3. E2E Tests
-
-**Location:** `sdk/v1/client_e2e_test.go` (build tag: `e2e`)
-
-**Purpose:** Validate that the Client interface works correctly against real OCM staging environment.
-
-**Coverage:**
-- `TestGetCluster_RealOCM` - Cluster retrieval
-- `TestGetClusterAnyStatus_RealOCM` - Cluster retrieval regardless of status
-- `TestGetClusters_RealOCM` - Batch cluster retrieval
-- `TestIsClusterCCS_RealOCM` - CCS flag detection
-- `TestIsHostedCluster_RealOCM` - Hypershift/HCP detection
-- `TestGetSubscription_RealOCM` - Subscription lookup
-- `TestGetOrgFromClusterID_RealOCM` - Organization lookup
-- `TestGetAWSAccountIdForCluster_RealOCM` - AWS account ID extraction
-- `TestConnectionLifecycle_RealOCM` - Full connection lifecycle
-
-**Prerequisites:**
-1. OCM API token for staging environment
-2. Known test cluster ID in staging
-3. Appropriate permissions to query OCM APIs
-
-**Running:**
-```bash
-# Set required environment variables
-export OCM_TOKEN="your-staging-token-here"
-export TEST_CLUSTER_ID="your-test-cluster-id"
-
-# Optional: specify OCM environment (defaults to staging)
-export OCM_URL="staging"  # or "integration", "production" (be careful!)
-
-# Run E2E tests
-make test-e2e
-
-# Or use go test directly
-go test -tags=e2e ./sdk/v1 -v
+    // Makes HTTP calls to localhost, not real OCM
+    cluster, err := client.GetCluster(testClusterID)
+    // ...
+}
 ```
 
-**Characteristics:**
-- Requires valid OCM credentials
-- Makes real API calls to OCM
-- Slower execution (seconds)
-- May have transient failures (network, rate limits)
-- Should default to **staging** environment for safety
+**Note:** Full mock-based testing is necessary because the OCM SDK (`ocm-sdk-go`) manages its own HTTP client internally and doesn't expose injection points.
+
+### 3. E2E Tests (Dual Mode: Mock or Real OCM)
+
+**Location**: `sdk/v1/client_e2e_test.go`
+**Build tag**: `e2e` (required)
+**Run with**: `make test-e2e` or `go test -tags=e2e ./sdk/v1`
+
+**Unique feature**: These tests automatically adapt based on whether credentials are available:
+- **Mock mode** (no `OCM_TOKEN`): Uses mock server with fixtures for local development
+- **Real mode** (`OCM_TOKEN` set): Tests against real OCM staging/production
+
+This allows developers to run E2E tests locally without credentials, while CI runs the same tests against real OCM for validation.
+
+#### Local Development (Mock Mode)
+```bash
+# No credentials needed - uses mock server
+unset OCM_TOKEN
+go test -tags=e2e ./sdk/v1 -v
+
+# Test output will show:
+# Running E2E test in MOCK mode (no OCM_TOKEN found)
+```
+
+**Benefits:**
+- Faster feedback loop - no real API calls
+- Offline development - works without VPN or internet
+- No credential management - no tokens to rotate
+- Deterministic tests - same fixtures, same results
+- Safe experimentation - can't accidentally affect real clusters
+
+#### CI/Production (Real OCM Mode)
+```bash
+# Set up credentials for real OCM
+export OCM_TOKEN=$(ocm token)
+export TEST_CLUSTER_ID="your-real-cluster-id"
+export OCM_URL=staging  # optional, defaults to staging
+
+# Run E2E tests against real OCM
+make test-e2e
+# or
+go test -tags=e2e ./sdk/v1 -v
+
+# Test output will show:
+# Running E2E test in REAL OCM mode
+```
+
+**Benefits:**
+- Validates against real API - catches integration issues
+- Flexible configuration - can run in mock mode if secrets not configured
+- Same test code - no separate test suites to maintain
+- Clear mode indication - logs show which mode is active
 
 **Safety:**
 - E2E tests default to `OCM_URL=staging` to prevent accidental production queries
 - Tests use read-only operations (no cluster creation/deletion)
 - Some tests gracefully handle permission errors
 
+#### How Dual Mode Works
+
+```go
+//go:build e2e
+// +build e2e
+
+type e2eTestContext struct {
+    client        *i1.Client      // OCM client
+    mockServer    *MockOCMServer  // Mock server (only in mock mode)
+    testClusterID string          // Test cluster ID
+    isRealOCM     bool           // Mode indicator
+}
+
+func TestGetCluster_E2E(t *testing.T) {
+    // Auto-detects mode based on OCM_TOKEN presence
+    ctx := setupE2ETest(t)
+    defer ctx.Close()
+
+    // Works in both modes:
+    // - Mock: Uses fixture from testdata/fixtures/cluster_osd.json
+    // - Real: Makes actual API call to OCM staging/production
+    cluster, err := ctx.client.GetCluster(ctx.testClusterID)
+
+    assert.NoError(t, err)
+    assert.NotNil(t, cluster)
+    // ...
+}
+```
+
+**Mode detection logic:**
+- If `OCM_TOKEN` is set → Real OCM mode
+- If `OCM_TOKEN` is empty → Mock mode with fixtures
+- No code changes needed - tests automatically adapt
+
+## Test Coverage
+
+The E2E test suite covers:
+- `TestGetCluster_E2E` - Cluster retrieval
+- `TestGetClusterAnyStatus_E2E` - Cluster retrieval regardless of status
+- `TestGetClusters_E2E` - Batch cluster retrieval
+- `TestIsClusterCCS_E2E` - CCS flag detection
+- `TestIsHostedCluster_E2E` - Hypershift/HCP detection
+- `TestGetSubscription_E2E` - Subscription lookup
+- `TestGetOrgFromClusterID_E2E` - Organization lookup
+- `TestGetAWSAccountIdForCluster_E2E` - AWS account ID extraction
+- `TestConnectionLifecycle_E2E` - Full connection lifecycle
+
+## Test Client Setup
+
+All tests use `setupTestClient(t)` which creates a client via `NewTestClient()`:
+
+```go
+// sdk/v1/testing_helpers.go
+func setupTestClient(t *testing.T) *i1.Client {
+    logger := hclog.New(&hclog.LoggerOptions{
+        Level: hclog.Error,
+    })
+
+    // Creates client using environment variables
+    client, err := i1.NewTestClient(logger)
+    require.NoError(t, err)
+    return client
+}
+```
+
+```go
+// internal/i1/types.go
+func NewTestClient(logger hclog.Logger) (*Client, error) {
+    // Uses OCM_URL and OCM_TOKEN from environment
+    conn, err := ocm.CreateTestConnection()
+    if err != nil {
+        return nil, err
+    }
+
+    return &Client{
+        Logger:  logger,
+        ocmConn: conn,
+    }, nil
+}
+```
+
+```go
+// internal/ocm/connection_testing.go
+func CreateTestConnection() (*sdk.Connection, error) {
+    urlEnv := os.Getenv("OCM_URL")      // e.g., "staging", "http://localhost:8080", etc.
+    tokenEnv := os.Getenv("OCM_TOKEN")   // Auth token
+
+    // Resolves URL alias (staging → real URL) or uses URL directly
+    ocmApiURL := resolveURL(urlEnv)
+
+    return sdk.NewConnectionBuilder().
+        URL(ocmApiURL).
+        TokenURL(ocmApiURL).
+        Tokens(tokenEnv).
+        Agent("srelib-...").
+        Build()
+}
+```
+
+## The Key Difference Between Test Types
+
+| Test Type | OCM_URL | OCM_TOKEN | HTTP Destination |
+|-----------|---------|-----------|------------------|
+| **Unit** | - | - | No HTTP calls |
+| **Integration** | `http://localhost:xxxxx` (mock server) | `"fake-token"` | Local mock HTTP server |
+| **E2E (Mock)** | `http://localhost:xxxxx` (mock server) | `""` (empty) | Local mock HTTP server |
+| **E2E (Real)** | `"staging"` (resolves to real URL) | Real token from `ocm token` | Real OCM staging API |
+
+**Integration tests:**
+```go
+mockServer := setupMockServer(t)  // Creates localhost:random-port
+t.Setenv("OCM_URL", mockServer.URL)  // Points to localhost
+t.Setenv("OCM_TOKEN", "fake-token")
+// → HTTP calls go to localhost mock server
+```
+
+**E2E tests (mock mode):**
+```go
+// OCM_TOKEN not set in environment
+ctx := setupE2ETest(t)  // Creates mock server automatically
+// → HTTP calls go to localhost mock server
+```
+
+**E2E tests (real mode):**
+```go
+t.Setenv("OCM_URL", "staging")  // Resolves to https://api.stage.openshift.com
+// OCM_TOKEN already set in environment with real token
+// → HTTP calls go to real OCM staging
+```
+
+## Test Fixtures
+
+**Location**: `sdk/v1/testdata/fixtures/`
+
+Test fixtures provide real OCM API response formats captured from actual API calls and sanitized for testing.
+
+### Available Fixtures
+
+- `cluster_osd.json` - OpenShift Dedicated cluster
+- `cluster_ccs.json` - CCS (Customer Cloud Subscription) cluster
+- `cluster_hypershift.json` - Hypershift/HCP cluster
+- `cluster_rosa.json` - ROSA cluster
+- `subscription_response.json` - Subscription data
+- `organization_response.json` - Organization data
+
+### Loading Fixtures
+
+```go
+// In integration tests
+mockServer := setupMockServer(t)
+clusterID, err := mockServer.LoadClusterFromFixture("cluster_osd.json")
+require.NoError(t, err)
+
+// Or add raw JSON for custom scenarios
+customJSON := json.RawMessage(`{"id": "custom-123", "name": "custom", ...}`)
+mockServer.AddClusterRaw("custom-123", customJSON)
+```
+
+### Capturing New Fixtures
+
+```bash
+# Set credentials
+export OCM_URL=staging
+export OCM_TOKEN=$(ocm token)
+
+# Capture cluster
+ocm get /api/clusters_mgmt/v1/clusters/CLUSTER_ID > temp.json
+
+# ⚠️ MANDATORY: Sanitize before committing (see below)
+
+# Save to fixtures
+mv sanitized.json sdk/v1/testdata/fixtures/cluster_new.json
+```
+
+### ⚠️ MANDATORY: Sanitize Fixtures
+
+**NEVER commit fixtures with real customer data!**
+
+Before adding any fixture:
+
+1. Replace all real cluster IDs → `test-cluster-123`
+2. Replace all AWS account IDs → `123456789012`
+3. Replace all customer names → generic test names
+4. Replace all real domains → `.test.t1.openshiftapps.com`
+5. Remove any tokens, credentials, ARNs with real account IDs
+6. Add `_metadata.sanitized: true`
+
+See [sdk/v1/testdata/fixtures/README.md](sdk/v1/testdata/fixtures/README.md) for complete sanitization guide.
+
+## Mock Server Features
+
+The mock HTTP server mimics OCM API behavior:
+
+### Supported Endpoints
+
+- `GET /api/clusters_mgmt/v1/clusters` - List clusters (with search)
+- `GET /api/clusters_mgmt/v1/clusters/{id}` - Get cluster by ID
+- `GET /api/accounts_mgmt/v1/subscriptions` - List subscriptions (with search)
+- `GET /api/accounts_mgmt/v1/organizations/{id}` - Get organization
+- Authentication endpoints (returns dummy tokens)
+
+### Search Syntax Support
+
+The mock server parses OCM search syntax:
+
+```go
+// OCM search format: "id = 'value' or name = 'value'"
+// Works in tests automatically
+cluster, err := client.GetCluster("test-cluster-234")  // by ID
+cluster, err := client.GetCluster("test-cluster-234s") // by name
+```
+
+### Automatic Indexing
+
+Fixtures are automatically indexed by:
+- Cluster: `id`, `name`, `external_id`
+- Subscription: `id`, `cluster_id`, `display_name`
+- Organization: `id`
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OCM_TOKEN` | Yes (E2E only) | - | OCM API authentication token |
+| `OCM_TOKEN` | Yes (E2E real mode only) | - | OCM API authentication token |
 | `OCM_URL` | No | `staging` | OCM environment: `staging`, `integration`, or `production` |
-| `TEST_CLUSTER_ID` | Yes (E2E only) | - | ID of a known test cluster in the target environment |
+| `TEST_CLUSTER_ID` | Yes (E2E real mode only) | - | ID of a known test cluster in the target environment |
 
 **Getting OCM Token:**
 ```bash
@@ -160,32 +423,20 @@ ocm list clusters --url staging
 ocm describe cluster <cluster-name> --url staging
 ```
 
-## Test Fixtures
+## Running All Tests
 
-**Location:** `sdk/v1/testdata/fixtures/*.json`
+```bash
+# Fast tests only (unit + integration with mocks)
+make test
 
-Test fixtures provide sample OCM API responses for documentation and potential future use:
+# Everything including E2E
+make test-all
 
-- `cluster_response.json` - Standard cluster response
-- `cluster_ccs.json` - Customer Cloud Subscription (CCS) enabled cluster
-- `cluster_hypershift.json` - Hypershift/HCP hosted cluster
-- `subscription_response.json` - Subscription response
-- `organization_response.json` - Organization response
-
-**Note:** These fixtures are currently for reference. The OCM SDK's architecture makes it difficult to use these for mocking without significant refactoring.
-
-## Test Helpers
-
-**Location:** `sdk/v1/testing_helpers.go`
-
-Shared test utilities available to all test files:
-
-- `setupTestClient(t, ocmURL)` - Creates a test client with specified OCM URL
-- `loadFixture(t, filename)` - Loads JSON fixture from testdata/fixtures/
-- `assertClusterValid(t, cluster)` - Validates cluster object structure
-- `assertSubscriptionValid(t, sub)` - Validates subscription object structure
-- `assertOrganizationValid(t, org)` - Validates organization object structure
-- `getEnvOrDefault(key, default)` - Gets environment variable with fallback
+# Or individually
+make test-unit
+make test-integration
+make test-e2e
+```
 
 ## Coverage
 
@@ -198,97 +449,191 @@ go test ./sdk/v1 -cover -v
 # Generate HTML coverage report
 go test ./sdk/v1 -coverprofile=coverage.out
 go tool cover -html=coverage.out
+
+# Coverage with E2E tests
+go test -tags=e2e ./sdk/v1 -coverprofile=coverage.out
+go tool cover -html=coverage.out
 ```
+
+## Adding New Tests
+
+### Integration Test (Mock Server)
+
+```go
+func TestMyFeature_MockOCM(t *testing.T) {
+    mockServer := setupMockServer(t)
+    defer mockServer.Close()
+
+    // Register mock responses
+    mockServer.RegisterResponse("/api/clusters_mgmt/v1/clusters/abc",
+        loadFixture(t, "cluster.json"))
+
+    t.Setenv("OCM_URL", mockServer.URL)
+    t.Setenv("OCM_TOKEN", "fake-token")
+    client := setupTestClient(t)
+    defer client.Close()
+
+    // Test your feature
+    result, err := client.MyFeature("abc")
+    assert.NoError(t, err)
+    // ...
+}
+```
+
+### E2E Test (Dual Mode)
+
+```go
+//go:build e2e
+// +build e2e
+
+func TestMyFeature_E2E(t *testing.T) {
+    // Step 1: Setup (auto-detects mode)
+    ctx := setupE2ETest(t)
+    defer ctx.Close()
+
+    // Step 2: (Optional) Load mock fixtures if needed for mock mode
+    if !ctx.isRealOCM {
+        ctx.mockServer.LoadClusterFromFixture("cluster_special.json")
+    }
+
+    // Step 3: Test your feature (same code for both modes)
+    result, err := ctx.client.MyFeature(ctx.testClusterID)
+    assert.NoError(t, err)
+    assert.NotNil(t, result)
+}
+```
+
+## Test Helpers
+
+**Location**: `sdk/v1/testing_helpers.go`
+
+Shared test utilities available to all test files:
+
+- `setupTestClient(t)` - Creates a test client with environment-based OCM URL
+- `loadFixture(t, filename)` - Loads JSON fixture from testdata/fixtures/
+- `assertClusterValid(t, cluster)` - Validates cluster object structure
+- `assertSubscriptionValid(t, sub)` - Validates subscription object structure
+- `assertOrganizationValid(t, org)` - Validates organization object structure
+- `getEnvOrDefault(key, default)` - Gets environment variable with fallback
 
 ## Troubleshooting
 
-### E2E Tests Skip with "OCM_TOKEN not set"
+### "OCM_TOKEN not set" - E2E tests skip
+**Expected for mock mode**. This is normal when running locally. Tests will use mock server.
 
-**Problem:** E2E tests skip even though you set `OCM_TOKEN`.
+### "connection refused" - Integration tests fail
+The mock server setup failed. Check that `setupMockServer()` is called correctly.
 
-**Solution:** Ensure you're running with the `e2e` build tag:
+### "unauthorized" - E2E tests fail
+Your `OCM_TOKEN` is invalid or expired. Regenerate:
+```bash
+export OCM_TOKEN=$(ocm token)
+```
+
+### E2E tests skip even with OCM_TOKEN set
+Ensure you're running with the `e2e` build tag:
 ```bash
 go test -tags=e2e ./sdk/v1 -v
 # or
 make test-e2e
 ```
 
-### E2E Tests Fail with "connection refused"
+### Tests pass locally but fail in CI
+- Unit tests: Should work everywhere (no credentials needed)
+- Integration tests: Should work everywhere (no credentials needed)
+- E2E tests (mock): Should work everywhere (no credentials needed)
+- E2E tests (real): Require GitHub secrets to be configured (see E2E_SETUP.md)
 
-**Problem:** Cannot connect to OCM API.
+### Mock test fails with "invalid OCM_URL"
+Make sure your `internal/ocm/connection.go` allows full URLs:
 
-**Solution:** Verify your token is valid and not expired:
-```bash
-# Test token
-ocm whoami --url staging
-
-# Refresh token if needed
-ocm login --url staging --token <new-token>
+```go
+// Should accept http:// and https:// URLs for testing
+if strings.HasPrefix(urlEnv, "http://") || strings.HasPrefix(urlEnv, "https://") {
+    ocmApiOverride = urlEnv
+}
 ```
 
-### E2E Tests Fail with Permission Errors
+### Mock test fails with "Not logged in"
+Ensure you're setting a valid dummy JWT token:
 
-**Problem:** "forbidden" or "not authorized" errors.
+```go
+t.Setenv("OCM_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjo5OTk5OTk5OTk5fQ.signature")
+```
 
-**Solution:** Some tests require specific permissions (e.g., organization access). These tests will log warnings but should not fail the overall test run. Check test output for permission-related skips.
+### Fixture not found
+Check the fixture path:
+- Fixtures must be in `sdk/v1/testdata/fixtures/`
+- Use the filename only, not the full path
+- File must be valid JSON
 
-### Tests Are Slow
-
-**Problem:** Tests take a long time to run.
-
-**Solution:**
+### Tests are slow
 - Run only unit/integration tests: `make test` (fast, no credentials)
 - E2E tests are inherently slower due to real API calls
 - Run E2E tests sparingly, not on every commit
 
-## Contributing New Tests
-
-When adding new tests:
+## Testing Best Practices
 
 1. **Choose the right tier:**
    - Unit tests for pure logic with no dependencies
-   - Integration tests for error handling and lifecycle
-   - E2E tests for validating against real OCM
+   - Integration tests for testing client behavior with mock server
+   - E2E tests for validating against real OCM (or mock for development)
 
-2. **Follow existing patterns:**
+2. **Keep tests fast** - Unit and integration tests should run in milliseconds
+
+3. **Make tests deterministic** - No random data, no time dependencies
+
+4. **Test error paths** - Don't just test the happy path
+
+5. **Use descriptive names** - Test names should describe what they test
+
+6. **Don't test external libraries** - Trust the OCM SDK, test your code
+
+7. **Clean up resources** - Use `defer` to clean up connections
+
+8. **Default to safety** - E2E tests should default to staging, never production
+
+9. **Follow existing patterns:**
    - Use table-driven tests for multiple test cases
    - Use `testify/require` for fatal errors (setup, preconditions)
    - Use `testify/assert` for non-fatal assertions
    - Add descriptive test names and comments
 
-3. **E2E test checklist:**
-   - Add `//go:build e2e` at the top
-   - Skip if `OCM_TOKEN` not set
-   - Default to `staging` environment
-   - Handle permission errors gracefully
-   - Log useful information for debugging
+10. **E2E test checklist:**
+    - Add `//go:build e2e` at the top
+    - Use `setupE2ETest(t)` for dual-mode support
+    - Handle both mock and real modes
+    - Log useful information for debugging
 
-4. **Run all tests before committing:**
-```bash
-make test        # Fast tests
-make test-e2e    # If you have credentials
-```
+11. **Always sanitize fixtures** before committing
 
-## Testing Best Practices
+12. **Use mock tests for CI/CD** - fast and reliable
 
-1. **Keep tests fast** - Unit and integration tests should run in milliseconds
-2. **Make tests deterministic** - No random data, no time dependencies
-3. **Test error paths** - Don't just test the happy path
-4. **Use descriptive names** - Test names should describe what they test
-5. **Don't test external libraries** - Trust the OCM SDK, test your code
-6. **Clean up resources** - Use `defer` to clean up connections
-7. **Default to safety** - E2E tests should default to staging, never production
+13. **Use E2E tests occasionally** - verify against real API changes
 
-## Next Steps
+14. **Keep fixtures up to date** - when OCM API changes
 
-See [TESTING_NEXT_STEPS.md](TESTING_NEXT_STEPS.md) for:
-- How to capture real test fixtures from OCM API
-- Future improvements and refactoring opportunities
-- CI/CD setup recommendations
-- Coverage improvement strategies
+15. **Document special fixtures** - if they test edge cases
+
+## Benefits of This Testing Strategy
+
+✅ **True E2E coverage** - Tests all your code including OCM integration layer
+✅ **No credentials needed for development** - Mock tests run without OCM access
+✅ **Fast** - No network calls to real APIs for local development
+✅ **Realistic** - Uses real OCM API response formats
+✅ **Maintainable** - Easy to add new test scenarios
+✅ **Safe** - Can't accidentally affect real clusters
+✅ **Flexible** - Same tests work locally and in CI
+✅ **Comprehensive** - Three tiers cover all testing needs
 
 ## Resources
 
+- [Mock Server Implementation](sdk/v1/ocm_mock_server_test.go)
+- [E2E Tests Implementation](sdk/v1/client_e2e_test.go)
+- [Integration Tests](sdk/v1/client_integration_test.go)
+- [Fixture Documentation](sdk/v1/testdata/fixtures/README.md)
+- [Connection Code](internal/ocm/connection_testing.go)
+- [GitHub Actions Setup](.github/E2E_SETUP.md)
 - [testify documentation](https://github.com/stretchr/testify)
 - [Go testing package](https://pkg.go.dev/testing)
 - [OCM SDK documentation](https://github.com/openshift-online/ocm-sdk-go)

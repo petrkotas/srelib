@@ -8,19 +8,19 @@
   "cloud_account_id": "1234567890",
   "cloud_provider_id": "aws",
   "cluster_billing_model": "standard",
-  "cluster_id": "test-cluster-456",
-  "console_url": "https://console-openshift-console.apps.test-cluster-456.test.t1.openshiftapps.com",
+  "cluster_id": "test-cluster-234",
+  "console_url": "https://console-openshift-console.apps.test-cluster-234.test.t1.openshiftapps.com",
   "created_at": "2021-02-18T13:53:15.094625Z",
   "creator": {
-    "href": "/api/accounts_mgmt/v1/accounts/test-account-456",
-    "id": "test-account-456",
+    "href": "/api/accounts_mgmt/v1/accounts/test-account-234",
+    "id": "test-account-234",
     "kind": "Account"
   },
-  "display_name": "test-cluster-456",
+  "display_name": "test-cluster-234",
   "eval_expiration_date": "0001-01-01T00:00:00Z",
-  "external_cluster_id": "external-test-cluster-456",
-  "href": "/api/accounts_mgmt/v1/subscriptions/test-subscription-456",
-  "id": "test-subscription-456",
+  "external_cluster_id": "external-test-cluster-234",
+  "href": "/api/accounts_mgmt/v1/subscriptions/test-subscription-234",
+  "id": "test-subscription-234",
   "kind": "Subscription",
   "last_reconcile_date": "0001-01-01T00:00:00Z",
   "last_released_at": "0001-01-01T00:00:00Z",
@@ -65,7 +65,7 @@
           "value": 0
         }
       },
-      "console_url": "https://console-openshift-console.apps.test-cluster-456.test.t1.openshiftapps.com",
+      "console_url": "https://console-openshift-console.apps.test-cluster-234.test.t1.openshiftapps.com",
       "cpu": {
         "total": {
           "unit": "",
