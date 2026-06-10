@@ -16,14 +16,14 @@ import (
 )
 
 // setupTestClient creates a client for testing
-// For integration tests with mock servers, pass the mock server URL
-// For E2E tests, pass empty string to use default OCM config
-func setupTestClient(t *testing.T, ocmURL string) *i1.Client {
+// Uses environment variables OCM_URL and OCM_TOKEN to configure the connection.
+// This bypasses the OCM config file requirement for testing purposes.
+func setupTestClient(t *testing.T) *i1.Client {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Level: hclog.Error, // Quiet logging during tests
 	})
 
-	client, err := i1.NewClient(logger)
+	client, err := i1.NewTestClient(logger)
 	require.NoError(t, err, "Failed to create test client")
 	return client
 }

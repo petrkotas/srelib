@@ -70,7 +70,7 @@ type IsHostedClusterReply struct {
 
 // GetManagementClusterArgs are the arguments for GetManagementCluster RPC
 type GetManagementClusterArgs struct {
-	ClusterJSON []byte
+	ClusterID string
 }
 
 // GetManagementClusterReply is the reply for GetManagementCluster RPC
@@ -114,7 +114,7 @@ type GetOrgFromClusterIDReply struct {
 
 // GetSupportRoleArnForClusterArgs are the arguments for GetSupportRoleArnForCluster RPC
 type GetSupportRoleArnForClusterArgs struct {
-	ClusterJSON []byte
+	ClusterID string
 }
 
 // GetSupportRoleArnForClusterReply is the reply for GetSupportRoleArnForCluster RPC
@@ -125,7 +125,7 @@ type GetSupportRoleArnForClusterReply struct {
 
 // GetAWSAccountIdForClusterArgs are the arguments for GetAWSAccountIdForCluster RPC
 type GetAWSAccountIdForClusterArgs struct {
-	ClusterJSON []byte
+	ClusterID string
 }
 
 // GetAWSAccountIdForClusterReply is the reply for GetAWSAccountIdForCluster RPC

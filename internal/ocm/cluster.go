@@ -97,38 +97,6 @@ func GetClusters(ocmClient *sdk.Connection, clusterIds []string) []*cmv1.Cluster
 	return clusters
 }
 
-// GetInternalClusterID converts any cluster identifier to the internal cluster ID
-func GetInternalClusterID(ocmClient *sdk.Connection, clusterIdentifier string) (string, error) {
-	cluster, err := GetCluster(ocmClient, clusterIdentifier)
-	if err != nil {
-		return "", fmt.Errorf("failed to get cluster: %w", err)
-	}
-
-	return cluster.ID(), nil
-}
-
-// IsClusterCCS checks if a cluster is a Customer Cloud Subscription cluster
-func IsClusterCCS(ocmClient *sdk.Connection, clusterID string) (bool, error) {
-	clusterResponse, err := ocmClient.ClustersMgmt().V1().Clusters().Cluster(clusterID).Get().Send()
-	if err != nil {
-		return false, err
-	}
-
-	cluster := clusterResponse.Body()
-	return cluster.CCS().Enabled(), nil
-}
-
-// IsHostedCluster checks if a cluster is a Hypershift/HCP hosted cluster
-func IsHostedCluster(clusterID string, conn *sdk.Connection) (bool, error) {
-	cluster := conn.ClustersMgmt().V1().Clusters().Cluster(clusterID)
-	res, err := cluster.Get().Send()
-	if err != nil {
-		return false, err
-	}
-
-	return res.Body().Hypershift().Enabled(), nil
-}
-
 // GetManagementCluster returns the OCM Cluster object for the management cluster of a hosted cluster
 func GetManagementCluster(clusterId string, conn *sdk.Connection) (*cmv1.Cluster, error) {
 	hypershiftResp, err := conn.ClustersMgmt().V1().Clusters().
@@ -186,20 +154,6 @@ func GetServiceCluster(clusterId string, conn *sdk.Connection) (*cmv1.Cluster, e
 	}
 
 	return svcCluster, nil
-}
-
-// IsManagementCluster checks if a cluster is a management cluster
-func IsManagementCluster(clusterID string, conn *sdk.Connection) (bool, error) {
-	collection := conn.ClustersMgmt().V1().Clusters()
-	list, err := collection.List().
-		Parameter("search", fmt.Sprintf("hypershift.management_cluster='%s'", clusterID)).
-		Size(1).
-		Send()
-	if err != nil {
-		return false, fmt.Errorf("failed to check if cluster %s is a management cluster: %w", clusterID, err)
-	}
-
-	return list.Total() >= 1, nil
 }
 
 // GetClusterLimitedSupportReasons retrieves limited support reasons for a cluster

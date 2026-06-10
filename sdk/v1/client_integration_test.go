@@ -9,7 +9,7 @@ import (
 
 // TestClient_ConnectionLifecycle tests the automatic OCM connection lifecycle
 func TestClient_ConnectionLifecycle(t *testing.T) {
-	client := setupTestClient(t, "")
+	client := setupTestClient(t)
 
 	// Test that Close works even without any operations
 	err := client.Close()
@@ -27,7 +27,7 @@ func TestClient_ClusterOperations_MissingCredentials(t *testing.T) {
 	t.Setenv("OCM_TOKEN", "")
 	t.Setenv("OCM_CONFIG", "/nonexistent/path/ocm.json")
 
-	client := setupTestClient(t, "")
+	client := setupTestClient(t)
 
 	t.Run("GetCluster fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetCluster("test-id")
@@ -55,7 +55,7 @@ func TestClient_SubscriptionOperations_MissingCredentials(t *testing.T) {
 	t.Setenv("OCM_TOKEN", "")
 	t.Setenv("OCM_CONFIG", "/nonexistent/path/ocm.json")
 
-	client := setupTestClient(t, "")
+	client := setupTestClient(t)
 
 	t.Run("GetSubscription fails with missing credentials", func(t *testing.T) {
 		_, err := client.GetSubscription("test-sub-id")
@@ -69,11 +69,6 @@ func TestClient_SubscriptionOperations_MissingCredentials(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to create OCM connection")
 	})
 
-	t.Run("GetOrgFromClusterID fails with missing credentials", func(t *testing.T) {
-		_, err := client.GetOrgFromClusterID("test-cluster-id")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create OCM connection")
-	})
 }
 
 // TestClient_AWSOperations_MissingCredentials tests that AWS operations
@@ -85,7 +80,7 @@ func TestClient_AWSOperations_MissingCredentials(t *testing.T) {
 	t.Run("AWS operations require valid OCM connection", func(t *testing.T) {
 		// This test documents that AWS methods require an initialized connection
 		// Actual testing requires E2E tests with real OCM data
-		client := setupTestClient(t, "")
+		client := setupTestClient(t)
 		assert.NotNil(t, client, "Client should be created")
 	})
 }

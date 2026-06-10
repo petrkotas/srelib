@@ -45,13 +45,18 @@ var urlAliases = map[string]string{
 // Version is set at build time
 var Version = "dev"
 
-// CreateConnection creates a connection to OCM using default configuration
+// CreateConnection creates a connection to OCM using the OCM config file.
 // To use OCM url override set OCM_URL environment variable to one of the following values:
 // 'production', 'staging', 'integration', 'productiongov', 'staginggov', 'integrationgov' or the full URL of the OCM API.
+//
+// This function is for production use and requires a valid OCM config file (~/.config/ocm/ocm.json).
+// For testing purposes, use CreateTestConnection() instead.
 func CreateConnection() (*sdk.Connection, error) {
 	urlEnv := os.Getenv("OCM_URL")
 	var ocmApiOverride string
+
 	if urlEnv != "" {
+		// Check if it's an alias first
 		gatewayURL, ok := urlAliases[urlEnv]
 		if !ok {
 			return nil, fmt.Errorf("invalid OCM_URL found: %s\nValid URL aliases are: 'production', 'staging', 'integration', 'productiongov', 'staginggov', 'integrationgov' or a full URL", urlEnv)
@@ -60,12 +65,13 @@ func CreateConnection() (*sdk.Connection, error) {
 		ocmApiOverride = gatewayURL
 	}
 
+	agentString := fmt.Sprintf("srelib-%s", Version)
+
+	// Load from OCM config file
 	config, err := ocmConfig.Load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OCM config: %w", err)
 	}
-
-	agentString := fmt.Sprintf("srelib-%s", Version)
 
 	connBuilder := ocmConnBuilder.NewConnection().Config(config).AsAgent(agentString)
 

@@ -40,6 +40,27 @@ func NewClient(logger hclog.Logger) (*Client, error) {
 	}, nil
 }
 
+// NewTestClient creates a client specifically for testing purposes.
+// This bypasses the OCM config file requirement and uses environment variables:
+// - OCM_URL: URL of the OCM API (or mock server)
+// - OCM_TOKEN: Authentication token
+//
+// This function should ONLY be used in test code.
+func NewTestClient(logger hclog.Logger) (*Client, error) {
+	var conn *sdk.Connection
+	var err error
+
+	conn, err = ocm.CreateTestConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		Logger:  logger,
+		ocmConn: conn,
+	}, nil
+}
+
 // Close closes the OCM connection and cleans up resources.
 func (c *Client) Close() error {
 	if c.ocmConn != nil {
@@ -74,25 +95,11 @@ func (c *Client) GetClusters(clusterIds []string) ([]*cmv1.Cluster, error) {
 	return ocm.GetClusters(c.ocmConn, clusterIds), nil
 }
 
-func (c *Client) IsClusterCCS(cluster *cmv1.Cluster) (bool, error) {
-	if c.connErr != nil {
-		return false, errors.New("OCM connection error")
-	}
-	return ocm.IsClusterCCS(c.ocmConn, cluster.ID())
-}
-
-func (c *Client) IsHostedCluster(cluster *cmv1.Cluster) (bool, error) {
-	if c.connErr != nil {
-		return false, errors.New("OCM connection error")
-	}
-	return ocm.IsHostedCluster(cluster.ID(), c.ocmConn)
-}
-
-func (c *Client) GetManagementCluster(cluster *cmv1.Cluster) (*cmv1.Cluster, error) {
+func (c *Client) GetManagementCluster(clusterId string) (*cmv1.Cluster, error) {
 	if c.connErr != nil {
 		return nil, errors.New("OCM connection error")
 	}
-	return ocm.GetManagementCluster(cluster.ID(), c.ocmConn)
+	return ocm.GetManagementCluster(clusterId, c.ocmConn)
 }
 
 // OCM Subscription & Organization
@@ -111,29 +118,18 @@ func (c *Client) GetOrganization(orgId string) (*amsv1.Organization, error) {
 	return ocm.GetOrganization(c.ocmConn, orgId)
 }
 
-func (c *Client) GetOrgFromClusterID(clusterId string) (string, error) {
-	if c.connErr != nil {
-		return "", errors.New("OCM connection error")
-	}
-	cluster, err := ocm.GetCluster(c.ocmConn, clusterId)
-	if err != nil {
-		return "", err
-	}
-	return ocm.GetOrgFromClusterID(c.ocmConn, cluster)
-}
-
 // AWS Account Operations
 
-func (c *Client) GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error) {
+func (c *Client) GetSupportRoleArnForCluster(clusterId string) (string, error) {
 	if c.connErr != nil {
 		return "", errors.New("OCM connection error")
 	}
-	return aws.GetSupportRoleArnFromCluster(c.ocmConn, cluster.ID())
+	return aws.GetSupportRoleArnFromCluster(c.ocmConn, clusterId)
 }
 
-func (c *Client) GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error) {
+func (c *Client) GetAWSAccountIdForCluster(clusterId string) (string, error) {
 	if c.connErr != nil {
 		return "", errors.New("OCM connection error")
 	}
-	return aws.GetAccountIdFromCluster(c.ocmConn, cluster.ID())
+	return aws.GetAccountIdFromCluster(c.ocmConn, clusterId)
 }

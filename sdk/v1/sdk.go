@@ -9,19 +9,19 @@ import (
 type Client interface {
 
 	// OCM Cluster Operations
+
+	// GetCluster allows getting a single cluster with any identifier
+	// (displayname, ID, or external ID)
 	GetCluster(key string) (*cmv1.Cluster, error)
 	GetClusterAnyStatus(clusterId string) (*cmv1.Cluster, error)
 	GetClusters(clusterIds []string) ([]*cmv1.Cluster, error)
-	IsClusterCCS(cluster *cmv1.Cluster) (bool, error)
-	IsHostedCluster(cluster *cmv1.Cluster) (bool, error)
-	GetManagementCluster(cluster *cmv1.Cluster) (*cmv1.Cluster, error)
+	GetManagementCluster(clusterId string) (*cmv1.Cluster, error)
 
 	// OCM Subscription & Organization
 	GetSubscription(key string) (*amsv1.Subscription, error)
 	GetOrganization(orgId string) (*amsv1.Organization, error)
-	GetOrgFromClusterID(clusterId string) (string, error)
 
 	// AWS Account Operations
-	GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error)
-	GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error)
+	GetSupportRoleArnForCluster(clusterId string) (string, error)
+	GetAWSAccountIdForCluster(clusterId string) (string, error)
 }

@@ -230,7 +230,7 @@ func TestGetAWSAccountIdForCluster_RealOCM(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cluster)
 
-	accountID, err := client.GetAWSAccountIdForCluster(cluster)
+	accountID, err := client.GetAWSAccountIdForCluster(cluster.ID())
 
 	// May fail if cluster is not AWS-based or lacks AWS configuration
 	if err != nil {

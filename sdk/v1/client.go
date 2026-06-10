@@ -68,58 +68,11 @@ func (c *RPCClient) GetClusters(clusterIds []string) ([]*cmv1.Cluster, error) {
 	return DeserializeClusters(reply.ClustersJSON)
 }
 
-func (c *RPCClient) IsClusterCCS(cluster *cmv1.Cluster) (bool, error) {
-	clusterJSON, err := SerializeCluster(cluster)
-	if err != nil {
-		return false, err
-	}
-
-	args := &IsClusterCCSArgs{ClusterJSON: clusterJSON}
-	reply := &IsClusterCCSReply{}
-
-	err = c.Client.Call("Plugin.IsClusterCCS", args, reply)
-	if err != nil {
-		return false, err
-	}
-
-	if reply.Error != "" {
-		return false, errors.New(reply.Error)
-	}
-
-	return reply.IsCCS, nil
-}
-
-func (c *RPCClient) IsHostedCluster(cluster *cmv1.Cluster) (bool, error) {
-	clusterJSON, err := SerializeCluster(cluster)
-	if err != nil {
-		return false, err
-	}
-
-	args := &IsHostedClusterArgs{ClusterJSON: clusterJSON}
-	reply := &IsHostedClusterReply{}
-
-	err = c.Client.Call("Plugin.IsHostedCluster", args, reply)
-	if err != nil {
-		return false, err
-	}
-
-	if reply.Error != "" {
-		return false, errors.New(reply.Error)
-	}
-
-	return reply.IsHosted, nil
-}
-
-func (c *RPCClient) GetManagementCluster(cluster *cmv1.Cluster) (*cmv1.Cluster, error) {
-	clusterJSON, err := SerializeCluster(cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	args := &GetManagementClusterArgs{ClusterJSON: clusterJSON}
+func (c *RPCClient) GetManagementCluster(clusterId string) (*cmv1.Cluster, error) {
+	args := &GetManagementClusterArgs{ClusterID: clusterId}
 	reply := &GetManagementClusterReply{}
 
-	err = c.Client.Call("Plugin.GetManagementCluster", args, reply)
+	err := c.Client.Call("Plugin.GetManagementCluster", args, reply)
 	if err != nil {
 		return nil, err
 	}
@@ -167,36 +120,15 @@ func (c *RPCClient) GetOrganization(orgId string) (*amsv1.Organization, error) {
 	return DeserializeOrganization(reply.OrganizationJSON)
 }
 
-func (c *RPCClient) GetOrgFromClusterID(clusterId string) (string, error) {
-	args := &GetOrgFromClusterIDArgs{ClusterID: clusterId}
-	reply := &GetOrgFromClusterIDReply{}
-
-	err := c.Client.Call("Plugin.GetOrgFromClusterID", args, reply)
-	if err != nil {
-		return "", err
-	}
-
-	if reply.Error != "" {
-		return "", errors.New(reply.Error)
-	}
-
-	return reply.OrgID, nil
-}
-
 // =================================================
 // AWS Account Operations
 // =================================================
 
-func (c *RPCClient) GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, error) {
-	clusterJSON, err := SerializeCluster(cluster)
-	if err != nil {
-		return "", err
-	}
-
-	args := &GetSupportRoleArnForClusterArgs{ClusterJSON: clusterJSON}
+func (c *RPCClient) GetSupportRoleArnForCluster(clusterId string) (string, error) {
+	args := &GetSupportRoleArnForClusterArgs{ClusterID: clusterId}
 	reply := &GetSupportRoleArnForClusterReply{}
 
-	err = c.Client.Call("Plugin.GetSupportRoleArnForCluster", args, reply)
+	err := c.Client.Call("Plugin.GetSupportRoleArnForCluster", args, reply)
 	if err != nil {
 		return "", err
 	}
@@ -208,16 +140,11 @@ func (c *RPCClient) GetSupportRoleArnForCluster(cluster *cmv1.Cluster) (string, 
 	return reply.Arn, nil
 }
 
-func (c *RPCClient) GetAWSAccountIdForCluster(cluster *cmv1.Cluster) (string, error) {
-	clusterJSON, err := SerializeCluster(cluster)
-	if err != nil {
-		return "", err
-	}
-
-	args := &GetAWSAccountIdForClusterArgs{ClusterJSON: clusterJSON}
+func (c *RPCClient) GetAWSAccountIdForCluster(clusterId string) (string, error) {
+	args := &GetAWSAccountIdForClusterArgs{ClusterID: clusterId}
 	reply := &GetAWSAccountIdForClusterReply{}
 
-	err = c.Client.Call("Plugin.GetAWSAccountIdForCluster", args, reply)
+	err := c.Client.Call("Plugin.GetAWSAccountIdForCluster", args, reply)
 	if err != nil {
 		return "", err
 	}
