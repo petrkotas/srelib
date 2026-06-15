@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"encoding/json"
+	"bytes"
 
 	amsv1 "github.com/openshift-online/ocm-sdk-go/accountsmgmt/v1"
 	cmv1 "github.com/openshift-online/ocm-sdk-go/clustersmgmt/v1"
@@ -138,25 +138,25 @@ type GetAWSAccountIdForClusterReply struct {
 // Helper functions for serialization
 // =================================================
 
-// SerializeCluster converts a Cluster to JSON bytes
+// SerializeCluster converts a Cluster to JSON bytes using the OCM SDK marshaler.
 func SerializeCluster(cluster *cmv1.Cluster) ([]byte, error) {
 	if cluster == nil {
 		return nil, nil
 	}
-	return json.Marshal(cluster)
+	var buf bytes.Buffer
+	err := cmv1.MarshalCluster(cluster, &buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-// DeserializeCluster converts JSON bytes to a Cluster
+// DeserializeCluster converts JSON bytes to a Cluster using the OCM SDK unmarshaler.
 func DeserializeCluster(data []byte) (*cmv1.Cluster, error) {
 	if data == nil {
 		return nil, nil
 	}
-	cluster := &cmv1.Cluster{}
-	err := json.Unmarshal(data, cluster)
-	if err != nil {
-		return nil, err
-	}
-	return cluster, nil
+	return cmv1.UnmarshalCluster(data)
 }
 
 // SerializeClusters converts a slice of Clusters to JSON bytes
@@ -185,44 +185,44 @@ func DeserializeClusters(data [][]byte) ([]*cmv1.Cluster, error) {
 	return result, nil
 }
 
-// SerializeSubscription converts a Subscription to JSON bytes
+// SerializeSubscription converts a Subscription to JSON bytes using the OCM SDK marshaler.
 func SerializeSubscription(sub *amsv1.Subscription) ([]byte, error) {
 	if sub == nil {
 		return nil, nil
 	}
-	return json.Marshal(sub)
+	var buf bytes.Buffer
+	err := amsv1.MarshalSubscription(sub, &buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-// DeserializeSubscription converts JSON bytes to a Subscription
+// DeserializeSubscription converts JSON bytes to a Subscription using the OCM SDK unmarshaler.
 func DeserializeSubscription(data []byte) (*amsv1.Subscription, error) {
 	if data == nil {
 		return nil, nil
 	}
-	sub := &amsv1.Subscription{}
-	err := json.Unmarshal(data, sub)
-	if err != nil {
-		return nil, err
-	}
-	return sub, nil
+	return amsv1.UnmarshalSubscription(data)
 }
 
-// SerializeOrganization converts an Organization to JSON bytes
+// SerializeOrganization converts an Organization to JSON bytes using the OCM SDK marshaler.
 func SerializeOrganization(org *amsv1.Organization) ([]byte, error) {
 	if org == nil {
 		return nil, nil
 	}
-	return json.Marshal(org)
+	var buf bytes.Buffer
+	err := amsv1.MarshalOrganization(org, &buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-// DeserializeOrganization converts JSON bytes to an Organization
+// DeserializeOrganization converts JSON bytes to an Organization using the OCM SDK unmarshaler.
 func DeserializeOrganization(data []byte) (*amsv1.Organization, error) {
 	if data == nil {
 		return nil, nil
 	}
-	org := &amsv1.Organization{}
-	err := json.Unmarshal(data, org)
-	if err != nil {
-		return nil, err
-	}
-	return org, nil
+	return amsv1.UnmarshalOrganization(data)
 }
