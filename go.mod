@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/openshift-online/ocm-common v0.0.37
-	github.com/openshift-online/ocm-sdk-go v0.1.499
+	github.com/openshift-online/ocm-sdk-go v0.1.504
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -42,8 +42,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
-	github.com/openshift-online/ocm-api-model/clientapi v0.0.453 // indirect
-	github.com/openshift-online/ocm-api-model/model v0.0.453 // indirect
+	github.com/openshift-online/ocm-api-model/clientapi v0.0.459 // indirect
+	github.com/openshift-online/ocm-api-model/model v0.0.459 // indirect
 	github.com/openshift-online/ocm-cli v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
