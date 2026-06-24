@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
-	github.com/openshift-online/ocm-common v0.0.37
+	github.com/openshift-online/ocm-common v0.0.43
 	github.com/openshift-online/ocm-sdk-go v0.1.499
 	github.com/stretchr/testify v1.11.1
 )
